@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Ball Handler"/>
+<meta name="theme-color" content="#FF6B6B"/>
+<title>Ball Handler Training</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}body{overscroll-behavior:none;font-family:'Nunito',system-ui,sans-serif;}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+
+const DRILLS={1:[{id:“stationary_dribble”,name:“Stationary Dribble”,emoji:“🏀”,reps:“30 sec each hand”,timed:30,tips:“Keep your eyes UP — don’t look at the ball! Fingertips only, not your palm. Stay low like you’re sitting in a chair.”},{id:“pound_dribble”,name:“Pound Dribble”,emoji:“💥”,reps:“20 pounds each hand”,timed:null,tips:“Dribble as HARD as you can! Slap the ball into the floor and let it come back up. This builds strong hands.”},{id:“around_the_world”,name:“Around the World”,emoji:“🌍”,reps:“5 circles each direction”,timed:null,tips:“Move the ball around your waist in a big circle. Start slow, then speed up. Don’t drop it!”}],2:[{id:“stationary_dribble”,name:“Stationary Dribble”,emoji:“🏀”,reps:“45 sec each hand”,timed:45,tips:“Keep your eyes UP! Fingertips only, not your palm. Stay low like you’re sitting in a chair.”},{id:“pound_dribble”,name:“Pound Dribble”,emoji:“💥”,reps:“25 pounds each hand”,timed:null,tips:“Dribble as HARD as you can! Slap the ball into the floor and let it come back up.”},{id:“figure_eight”,name:“Figure Eight”,emoji:“8️⃣”,reps:“10 slow, 10 fast”,timed:null,tips:“Weave the ball through your legs in a figure 8. Go slow first, then speed up without dropping!”},{id:“around_the_world”,name:“Around the World”,emoji:“🌍”,reps:“8 circles each direction”,timed:null,tips:“Move the ball around your waist in a big circle. Start slow, then speed up.”}],3:[{id:“stationary_dribble”,name:“Stationary Dribble”,emoji:“🏀”,reps:“60 sec each hand”,timed:60,tips:“Eyes UP! Fingertips only. Stay low like you’re sitting in a chair.”},{id:“crossover_dribble”,name:“Crossover Dribble”,emoji:“↔️”,reps:“20 crossovers”,timed:null,tips:“Push the ball from one hand to the other in front of you. Keep it low! High crossovers are easy to steal.”},{id:“figure_eight”,name:“Figure Eight”,emoji:“8️⃣”,reps:“15 reps”,timed:null,tips:“Weave the ball through your legs in a figure 8. Speed up without dropping!”},{id:“spider_dribble”,name:“Spider Dribble”,emoji:“🕷️”,reps:“30 seconds”,timed:30,tips:“Dribble both hands alternating — front then behind legs. Like a spider walking! Feet wide apart.”}],4:[{id:“stationary_dribble”,name:“Stationary Dribble”,emoji:“🏀”,reps:“60 sec each hand”,timed:60,tips:“Eyes UP! Fingertips only. Stay low like you’re sitting in a chair.”},{id:“crossover_dribble”,name:“Crossover Dribble”,emoji:“↔️”,reps:“30 crossovers — fast!”,timed:null,tips:“Push the ball low from one hand to the other. Speed is the goal now!”},{id:“between_legs”,name:“Between the Legs”,emoji:“🦵”,reps:“10 each leg, walking”,timed:null,tips:“Step forward and bounce the ball between your legs to the other hand. Stay low and keep moving. Real pro move!”},{id:“spider_dribble”,name:“Spider Dribble”,emoji:“🕷️”,reps:“45 seconds”,timed:45,tips:“Dribble both hands alternating — front then behind legs. Feet wide apart.”},{id:“two_ball_dribble”,name:“Two Ball Dribble”,emoji:“🏀🏀”,reps:“30 seconds”,timed:30,tips:“Dribble TWO basketballs at the same time! Same time, then alternating. Super hard but super fun!”}]};
+
+const WEEK_LABELS=[“Week 1 — Getting Started 🌱”,“Week 2 — Building Up 💪”,“Week 3 — Level Up! ⚡”,“Week 4 — Pro Mode 🏆”];
+const COLORS=[”#FF6B6B”,”#FFD93D”,”#6BCB77”,”#4D96FF”,”#C77DFF”,”#FF9A3C”];
+const DAY_NAMES=[“Mon”,“Wed”,“Fri”,“Sat”];
+const ZONES=[{id:“paint”,label:“Paint”,emoji:“🟦”,cx:100,cy:148,color:”#4D96FF”},{id:“ft”,label:“Free Throw”,emoji:“🎯”,cx:100,cy:115,color:”#C77DFF”},{id:“elbow_l”,label:“Left Elbow”,emoji:“📐”,cx:62,cy:108,color:”#FF9A3C”},{id:“elbow_r”,label:“Right Elbow”,emoji:“📐”,cx:138,cy:108,color:”#FF9A3C”},{id:“wing_l”,label:“Left Wing”,emoji:“🏹”,cx:28,cy:88,color:”#FFD93D”},{id:“wing_r”,label:“Right Wing”,emoji:“🏹”,cx:172,cy:88,color:”#FFD93D”},{id:“corner_l”,label:“Left Corner”,emoji:“📍”,cx:18,cy:148,color:”#FF6B6B”},{id:“corner_r”,label:“Right Corner”,emoji:“📍”,cx:182,cy:148,color:”#FF6B6B”}];
+
+function getFGPct(m,t){return t?Math.round((m/t)*100):0;}
+function formatDate(d){return new Date(d).toLocaleDateString(“en-US”,{month:“short”,day:“numeric”});}
+function getZone(id){return ZONES.find(z=>z.id===id)||{label:“Unknown”,color:”#aaa”,emoji:“📍”};}
+
+function Timer({seconds,onDone}){
+const [rem,setRem]=useState(seconds);
+const [run,setRun]=useState(false);
+const ref=useRef(null);
+useEffect(()=>{
+if(run&&rem>0){ref.current=setInterval(()=>setRem(r=>r-1),1000);}
+else if(rem===0){clearInterval(ref.current);setRun(false);onDone&&onDone();}
+return()=>clearInterval(ref.current);
+},[run,rem]);
+const pct=((seconds-rem)/seconds)*100;
+return(
+<div style={{display:“flex”,alignItems:“center”,gap:10,marginTop:8}}>
+<div style={{position:“relative”,width:48,height:48}}>
+<svg width=“48” height=“48” style={{transform:“rotate(-90deg)”}}>
+<circle cx="24" cy="24" r="20" fill="none" stroke="#eee" strokeWidth="5"/>
+<circle cx=“24” cy=“24” r=“20” fill=“none” stroke=”#FF6B6B” strokeWidth=“5” strokeDasharray={`${2*Math.PI*20}`} strokeDashoffset={`${2*Math.PI*20*(1-pct/100)}`} style={{transition:“stroke-dashoffset 0.5s”}}/>
+</svg>
+<span style={{position:“absolute”,inset:0,display:“flex”,alignItems:“center”,justifyContent:“center”,fontWeight:800,fontSize:13,color:”#333”}}>{rem}s</span>
+</div>
+<button onClick={()=>setRun(r=>!r)} style={{padding:“6px 14px”,borderRadius:20,border:“none”,background:run?”#FF6B6B”:”#6BCB77”,color:”#fff”,fontWeight:800,fontSize:13,cursor:“pointer”}}>{run?“⏸ Pause”:rem<seconds?“▶ Resume”:“▶ Start”}</button>
+<button onClick={()=>{setRem(seconds);setRun(false);}} style={{padding:“6px 12px”,borderRadius:20,border:“none”,background:”#eee”,color:”#555”,fontWeight:700,fontSize:13,cursor:“pointer”}}>↺</button>
+</div>
+);
+}
+
+function DrillCard({drill,done,reps,onToggle,onRepsChange,color}){
+const [exp,setExp]=useState(false);
+const [td,setTd]=useState(false);
+return(
+<div style={{borderRadius:20,background:done?`${color}22`:”#fff”,border:`3px solid ${done?color:"#f0f0f0"}`,padding:“14px 16px”,marginBottom:12,boxShadow:done?`0 4px 16px ${color}33`:“0 2px 8px rgba(0,0,0,0.06)”,transition:“all 0.3s”}}>
+<div style={{display:“flex”,alignItems:“center”,gap:12}}>
+<button onClick={onToggle} style={{width:36,height:36,borderRadius:“50%”,border:`3px solid ${color}`,background:done?color:“transparent”,cursor:“pointer”,fontSize:16,display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0}}>{done?“✓”:””}</button>
+<div style={{flex:1}}>
+<div style={{display:“flex”,alignItems:“center”,gap:7}}><span style={{fontSize:18}}>{drill.emoji}</span><span style={{fontWeight:800,fontSize:14,color:”#222”,textDecoration:done?“line-through”:“none”,opacity:done?0.6:1}}>{drill.name}</span></div>
+<div style={{fontSize:11,color:”#888”,marginTop:2}}>{drill.reps}</div>
+</div>
+<button onClick={()=>setExp(e=>!e)} style={{background:“none”,border:“none”,fontSize:16,cursor:“pointer”,color:”#aaa”}}>{exp?“▲”:“▼”}</button>
+</div>
+{exp&&(
+<div style={{marginTop:12,borderTop:“2px dashed #f0f0f0”,paddingTop:12}}>
+<div style={{background:”#fffbe6”,border:“2px solid #FFD93D”,borderRadius:12,padding:“10px 14px”,marginBottom:10}}>
+<span style={{fontSize:12,fontWeight:800,color:”#b8860b”}}>💡 Coach’s Tip: </span>
+<span style={{fontSize:12,color:”#555”}}>{drill.tips}</span>
+</div>
+{drill.timed&&<div><div style={{fontSize:12,fontWeight:700,color:”#888”,marginBottom:4}}>⏱ TIMER</div><Timer seconds={drill.timed} onDone={()=>setTd(true)}/>{td&&<div style={{marginTop:6,color:”#6BCB77”,fontWeight:800,fontSize:13}}>🎉 Time’s up! Great work!</div>}</div>}
+<div style={{marginTop:10}}>
+<div style={{fontSize:12,fontWeight:700,color:”#888”,marginBottom:4}}>📝 LOG REPS / NOTES</div>
+<input type=“text” value={reps||””} onChange={e=>onRepsChange(e.target.value)} placeholder=“e.g. 30 reps, felt good!” style={{width:“100%”,padding:“8px 12px”,borderRadius:12,border:“2px solid #f0f0f0”,fontSize:13,outline:“none”,boxSizing:“border-box”}}/>
+</div>
+</div>
+)}
+</div>
+);
+}
+
+function CourtPicker({sel,onSel}){
+return(
+<div style={{width:“100%”}}>
+<svg viewBox=“0 0 200 170” style={{width:“100%”,display:“block”,borderRadius:16}}>
+<rect x="0" y="0" width="200" height="170" fill="#f5e6c8" rx="10"/>
+<line x1="10" y1="162" x2="190" y2="162" stroke="#c9a96e" strokeWidth="1.5"/>
+<line x1="10" y1="20" x2="10" y2="162" stroke="#c9a96e" strokeWidth="1.5"/>
+<line x1="190" y1="20" x2="190" y2="162" stroke="#c9a96e" strokeWidth="1.5"/>
+<rect x="68" y="118" width="64" height="44" fill="#e8d5a3" stroke="#c9a96e" strokeWidth="1.5" rx="2"/>
+<path d="M 68 118 A 32 32 0 0 1 132 118" fill="none" stroke="#c9a96e" strokeWidth="1.5"/>
+<rect x="88" y="158" width="24" height="3" fill="#c9a96e" rx="1"/>
+<circle cx="100" cy="160" r="6" fill="none" stroke="#e07020" strokeWidth="2"/>
+<path d="M 18 162 L 18 105 A 82 82 0 0 1 182 105 L 182 162" fill="none" stroke="#c9a96e" strokeWidth="1.5"/>
+{ZONES.map(z=>{
+const s=sel===z.id;
+return(
+<g key={z.id} onClick={()=>onSel(z.id)} style={{cursor:“pointer”}}>
+<circle cx={z.cx} cy={z.cy} r={s?13:11} fill={s?z.color:“rgba(255,255,255,0.7)”} stroke={z.color} strokeWidth={s?3:2}/>
+<text x={z.cx} y={z.cy+1} textAnchor=“middle” dominantBaseline=“middle” fontSize={s?“9”:“8”} fontWeight=“900” fill={s?”#fff”:z.color}>
+{z.id===“paint”?“P”:z.id===“ft”?“FT”:z.id.startsWith(“elbow”)?“EL”:z.id.startsWith(“wing”)?“WG”:“CO”}
+</text>
+</g>
+);
+})}
+</svg>
+<div style={{display:“flex”,flexWrap:“wrap”,gap:5,marginTop:8,justifyContent:“center”}}>
+{ZONES.map(z=>(<button key={z.id} onClick={()=>onSel(z.id)} style={{padding:“4px 9px”,borderRadius:20,border:`2px solid ${z.color}`,background:sel===z.id?z.color:“transparent”,color:sel===z.id?”#fff”:z.color,fontWeight:800,fontSize:10,cursor:“pointer”}}>{z.label}</button>))}
+</div>
+</div>
+);
+}
+
+function ZoneBreakdown({shots}){
+const bz={};
+shots.forEach(s=>{if(!bz[s.zone])bz[s.zone]={makes:0,total:0};bz[s.zone].total++;if(s.result===“make”)bz[s.zone].makes++;});
+const rows=ZONES.filter(z=>bz[z.id]).map(z=>({…z,…bz[z.id]}));
+if(!rows.length)return null;
+return(
+<div style={{background:”#fff”,borderRadius:20,padding:“14px 16px”,marginBottom:14,boxShadow:“0 2px 10px rgba(0,0,0,0.05)”}}>
+<div style={{fontSize:12,fontWeight:800,color:”#aaa”,letterSpacing:1,marginBottom:10}}>📍 BY ZONE</div>
+{rows.map(z=>{const p=getFGPct(z.makes,z.total);return(
+<div key={z.id} style={{display:“flex”,alignItems:“center”,gap:10,marginBottom:8}}>
+<div style={{width:28,height:28,borderRadius:8,background:`${z.color}22`,border:`2px solid ${z.color}`,display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:12,flexShrink:0}}>{z.emoji}</div>
+<div style={{flex:1}}>
+<div style={{display:“flex”,justifyContent:“space-between”,marginBottom:3}}>
+<span style={{fontSize:12,fontWeight:700,color:”#333”}}>{z.label}</span>
+<span style={{fontSize:12,fontWeight:900,color:p>=50?”#6BCB77”:”#FF6B6B”}}>{p}% <span style={{fontSize:10,color:”#aaa”}}>({z.makes}/{z.total})</span></span>
+</div>
+<div style={{height:6,borderRadius:3,background:”#f0f0f0”}}><div style={{height:“100%”,borderRadius:3,width:`${p}%`,background:p>=50?”#6BCB77”:”#FF6B6B”}}/></div>
+</div>
+</div>
+);})}
+</div>
+);
+}
+
+function ShotTracker({sessions,onNew,onAdd,onRemove,onClear}){
+const [selZone,setSelZone]=useState(null);
+const [confClear,setConfClear]=useState(false);
+const cur=sessions[sessions.length-1];
+const makes=cur.shots.filter(s=>s.result===“make”).length;
+const total=cur.shots.length;
+const pct=getFGPct(makes,total);
+const at=sessions.reduce((a,s)=>{a.makes+=s.shots.filter(x=>x.result===“make”).length;a.total+=s.shots.length;return a;},{makes:0,total:0});
+const shoot=(r)=>{if(!selZone)return;onAdd({result:r,zone:selZone});};
+return(
+<div style={{padding:“16px 16px 0”}}>
+<div style={{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:14}}>
+<div><div style={{fontWeight:900,fontSize:18,color:”#222”}}>🎯 Shot Tracker</div><div style={{fontSize:11,color:”#aaa”,fontWeight:700}}>Session {sessions.length}</div></div>
+<div style={{display:“flex”,gap:7,alignItems:“center”}}>
+{total>0&&!confClear&&<button onClick={()=>setConfClear(true)} style={{padding:“7px 12px”,borderRadius:20,border:“2px solid #f0e0e0”,background:”#fff8f8”,color:”#FF6B6B”,fontWeight:800,fontSize:11,cursor:“pointer”}}>🗑 Clear</button>}
+{confClear&&<><button onClick={()=>{onClear();setConfClear(false);}} style={{padding:“7px 12px”,borderRadius:20,border:“none”,background:”#FF6B6B”,color:”#fff”,fontWeight:800,fontSize:11,cursor:“pointer”}}>Yes, clear</button><button onClick={()=>setConfClear(false)} style={{padding:“7px 12px”,borderRadius:20,border:“2px solid #eee”,background:”#fff”,color:”#aaa”,fontWeight:800,fontSize:11,cursor:“pointer”}}>Cancel</button></>}
+{!confClear&&<button onClick={onNew} style={{padding:“8px 14px”,borderRadius:20,border:“none”,background:“linear-gradient(135deg,#FF6B6B,#FF9A3C)”,color:”#fff”,fontWeight:800,fontSize:12,cursor:“pointer”}}>+ New</button>}
+</div>
+</div>
+<div style={{background:”#fff”,borderRadius:22,padding:“18px 16px 14px”,marginBottom:14,boxShadow:“0 2px 14px rgba(0,0,0,0.07)”}}>
+<div style={{display:“flex”,justifyContent:“center”,alignItems:“center”,gap:24,marginBottom:14}}>
+<div style={{textAlign:“center”}}><div style={{fontSize:40,fontWeight:900,color:”#6BCB77”,lineHeight:1}}>{makes}</div><div style={{fontSize:10,fontWeight:800,color:”#aaa”,marginTop:2}}>MAKES ✅</div></div>
+<div style={{position:“relative”,width:84,height:84}}>
+<svg width=“84” height=“84” style={{transform:“rotate(-90deg)”}}>
+<circle cx="42" cy="42" r="35" fill="none" stroke="#f0f0f0" strokeWidth="9"/>
+<circle cx=“42” cy=“42” r=“35” fill=“none” stroke={total===0?”#e0e0e0”:pct>=50?”#6BCB77”:”#FF6B6B”} strokeWidth=“9” strokeLinecap=“round” strokeDasharray={`${2*Math.PI*35}`} strokeDashoffset={`${2*Math.PI*35*(1-pct/100)}`} style={{transition:“stroke-dashoffset 0.4s”}}/>
+</svg>
+<div style={{position:“absolute”,inset:0,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”}}><span style={{fontSize:20,fontWeight:900,color:”#222”}}>{total===0?”—”:`${pct}%`}</span><span style={{fontSize:9,fontWeight:800,color:”#aaa”}}>FG%</span></div>
+</div>
+<div style={{textAlign:“center”}}><div style={{fontSize:40,fontWeight:900,color:”#FF6B6B”,lineHeight:1}}>{total-makes}</div><div style={{fontSize:10,fontWeight:800,color:”#aaa”,marginTop:2}}>MISSES ❌</div></div>
+</div>
+{total>0&&(
+<div style={{marginBottom:12}}>
+<div style={{fontSize:9,color:”#ccc”,fontWeight:700,textAlign:“center”,marginBottom:5}}>TAP A DOT TO REMOVE IT</div>
+<div style={{display:“flex”,justifyContent:“center”,flexWrap:“wrap”,gap:5,maxHeight:72,overflow:“hidden”}}>
+{cur.shots.map((s,i)=>{const z=getZone(s.zone);return(<button key={i} onClick={()=>onRemove(i)} style={{width:24,height:24,borderRadius:“50%”,background:s.result===“make”?”#6BCB77”:”#FF6B6B”,border:`2.5px solid ${z.color}`,padding:0,display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:10,color:”#fff”,fontWeight:900,cursor:“pointer”}}>{s.result===“make”?“✓”:“✗”}</button>);})}
+</div>
+</div>
+)}
+</div>
+<div style={{background:”#fff”,borderRadius:22,padding:“14px 14px 16px”,marginBottom:14,boxShadow:“0 2px 14px rgba(0,0,0,0.07)”}}>
+<div style={{fontSize:12,fontWeight:800,color:”#aaa”,letterSpacing:1,marginBottom:10,textAlign:“center”}}>{selZone?`📍 ${getZone(selZone).label} — Now tap MAKE or MISS`:“① TAP THE COURT TO PICK A ZONE”}</div>
+<CourtPicker sel={selZone} onSel={setSelZone}/>
+<div style={{display:“grid”,gridTemplateColumns:“1fr 1fr”,gap:12,marginTop:14}}>
+<button onClick={()=>shoot(“make”)} disabled={!selZone} style={{padding:“18px 10px”,borderRadius:20,border:“none”,background:selZone?“linear-gradient(135deg,#6BCB77,#4CAF50)”:”#e8e8e8”,color:”#fff”,fontWeight:900,fontSize:22,cursor:selZone?“pointer”:“not-allowed”,opacity:selZone?1:0.5}}>✅<br/><span style={{fontSize:14}}>MAKE</span></button>
+<button onClick={()=>shoot(“miss”)} disabled={!selZone} style={{padding:“18px 10px”,borderRadius:20,border:“none”,background:selZone?“linear-gradient(135deg,#FF6B6B,#e53935)”:”#e8e8e8”,color:”#fff”,fontWeight:900,fontSize:22,cursor:selZone?“pointer”:“not-allowed”,opacity:selZone?1:0.5}}>❌<br/><span style={{fontSize:14}}>MISS</span></button>
+</div>
+{!selZone&&<div style={{textAlign:“center”,fontSize:11,color:”#ccc”,fontWeight:700,marginTop:8}}>Pick a zone on the court first ☝️</div>}
+</div>
+<ZoneBreakdown shots={cur.shots}/>
+<div style={{background:“linear-gradient(135deg,#4D96FF18,#C77DFF18)”,border:“2px solid #4D96FF28”,borderRadius:20,padding:“13px 16px”,marginBottom:14}}>
+<div style={{fontSize:11,fontWeight:800,color:”#4D96FF”,letterSpacing:1,marginBottom:9}}>📊 ALL-TIME · {sessions.length} sessions</div>
+<div style={{display:“flex”,justifyContent:“space-around”}}>
+{[{l:“FG%”,v:`${getFGPct(at.makes,at.total)}%`,c:”#4D96FF”},{l:“Makes”,v:at.makes,c:”#6BCB77”},{l:“Shots”,v:at.total,c:”#333”}].map(s=>(<div key={s.l} style={{textAlign:“center”}}><div style={{fontSize:26,fontWeight:900,color:s.c}}>{s.v}</div><div style={{fontSize:10,color:”#aaa”,fontWeight:700}}>{s.l}</div></div>))}
+</div>
+</div>
+{sessions.length>0&&(
+<div style={{background:”#fff”,borderRadius:20,padding:“14px 16px”,boxShadow:“0 2px 10px rgba(0,0,0,0.05)”,marginBottom:16}}>
+<div style={{fontSize:11,fontWeight:800,color:”#aaa”,letterSpacing:1,marginBottom:10}}>📅 SESSION HISTORY</div>
+<div style={{display:“flex”,alignItems:“flex-end”,gap:5,height:50,marginBottom:12}}>
+{sessions.map((s,i)=>{const sm=s.shots.filter(x=>x.result===“make”).length;const sp=getFGPct(sm,s.shots.length);return(<div key={s.id} style={{flex:1,display:“flex”,flexDirection:“column”,alignItems:“center”,gap:2}}><div style={{fontSize:8,fontWeight:800,color:s.shots.length?(sp>=50?”#6BCB77”:”#FF6B6B”):”#eee”}}>{s.shots.length?`${sp}%`:””}</div><div style={{width:“100%”,borderRadius:“3px 3px 0 0”,background:s.shots.length?(sp>=50?”#6BCB77”:”#FF6B6B”):”#f0f0f0”,height:s.shots.length?`${Math.max(5,sp*0.38)}px`:5}}/><div style={{fontSize:8,color:”#ddd”,fontWeight:700}}>S{i+1}</div></div>);})}
+</div>
+{[…sessions].reverse().map((s,i)=>{const sm=s.shots.filter(x=>x.result===“make”).length;const st=s.shots.length;const sp=getFGPct(sm,st);const il=i===0;return(
+<div key={s.id} style={{display:“flex”,alignItems:“center”,gap:10,padding:“8px 0”,borderBottom:i<sessions.length-1?“1px solid #f5f5f5”:“none”}}>
+<div style={{width:32,height:32,borderRadius:9,background:il?”#FFD93D22”:”#f8f8f8”,display:“flex”,alignItems:“center”,justifyContent:“center”,fontWeight:900,fontSize:11,color:il?”#b8860b”:”#bbb”,border:il?“2px solid #FFD93D”:“2px solid transparent”,flexShrink:0}}>S{sessions.length-i}</div>
+<div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:”#333”}}>{formatDate(s.date)} {il&&<span style={{fontSize:9,background:”#FFD93D”,color:”#a07000”,borderRadius:5,padding:“1px 5px”,fontWeight:800}}>NOW</span>}</div><div style={{fontSize:10,color:”#ccc”}}>{sm} makes · {st-sm} misses · {st} shots</div></div>
+<div style={{textAlign:“right”}}><div style={{fontSize:19,fontWeight:900,color:st===0?”#ccc”:sp>=50?”#6BCB77”:”#FF6B6B”}}>{st===0?”—”:`${sp}%`}</div><div style={{height:3,width:44,borderRadius:2,background:”#f0f0f0”,marginTop:2}}><div style={{height:“100%”,borderRadius:2,width:`${sp}%`,background:sp>=50?”#6BCB77”:”#FF6B6B”}}/></div></div>
+</div>
+);})}
+</div>
+)}
+</div>
+);
+}
+
+function App(){
+const [tab,setTab]=useState(“home”);
+const [sw,setSw]=useState(1);
+const [sd,setSd]=useState(null);
+const [dv,setDv]=useState(“calendar”);
+const [done,setDone]=useState({});
+const [reps,setReps]=useState({});
+const [sessions,setSessions]=useState([{id:Date.now(),date:Date.now(),shots:[]}]);
+
+const tog=(w,d,id)=>setDone(c=>({…c,[`${w}-${d}-${id}`]:!c[`${w}-${d}-${id}`]}));
+const lr=(w,d,id,v)=>setReps(r=>({…r,[`${w}-${d}-${id}`]:v}));
+const dp=(w,d)=>{const dr=DRILLS[w]||[];return dr.length?Math.round(dr.filter(x=>done[`${w}-${d}-${x.id}`]).length/dr.length*100):0;};
+const wp=(w)=>{let t=0,dn=0;for(let d=1;d<=4;d++){const dr=DRILLS[w]||[];t+=dr.length;dn+=dr.filter(x=>done[`${w}-${d}-${x.id}`]).length;}return t?Math.round(dn/t*100):0;};
+const addShot=(s)=>setSessions(p=>{const u=[…p];u[u.length-1]={…u[u.length-1],shots:[…u[u.length-1].shots,s]};return u;});
+const remShot=(i)=>setSessions(p=>{const u=[…p];const l={…u[u.length-1]};l.shots=l.shots.filter((_,x)=>x!==i);u[u.length-1]=l;return u;});
+const clrSession=()=>setSessions(p=>{const u=[…p];u[u.length-1]={…u[u.length-1],shots:[]};return u;});
+const newSession=()=>setSessions(p=>[…p,{id:Date.now(),date:Date.now(),shots:[]}]);
+
+const cur=sessions[sessions.length-1];
+const cm=cur.shots.filter(s=>s.result===“make”).length;
+const cp=getFGPct(cm,cur.shots.length);
+const at=sessions.reduce((a,s)=>{a.makes+=s.shots.filter(x=>x.result===“make”).length;a.total+=s.shots.length;return a;},{makes:0,total:0});
+const drills=DRILLS[sw]||[];
+
+return(
+<div style={{minHeight:“100vh”,background:“linear-gradient(135deg,#FFF4E6 0%,#E8F4FD 50%,#F0FFF4 100%)”,fontFamily:“system-ui,sans-serif”,paddingBottom:76}}>
+<div style={{background:“linear-gradient(135deg,#FF6B6B,#FFD93D)”,padding:“18px 20px 14px”,textAlign:“center”,borderRadius:“0 0 26px 26px”,boxShadow:“0 6px 28px rgba(255,107,107,0.3)”}}>
+<div style={{fontSize:32}}>🏀</div>
+<h1 style={{margin:“2px 0 0”,fontSize:20,fontWeight:900,color:”#fff”,textShadow:“0 2px 8px rgba(0,0,0,0.2)”}}>Ball Handler Training</h1>
+<div style={{color:“rgba(255,255,255,0.88)”,fontSize:11,fontWeight:700}}>4-Week Program 🌟</div>
+</div>
+
+```
+  {tab==="home"&&(
+    <div style={{padding:"16px 16px 0"}}>
+      <div onClick={()=>setTab("shots")} style={{background:"#fff",borderRadius:22,padding:"15px 16px",marginBottom:14,boxShadow:"0 2px 14px rgba(0,0,0,0.08)",cursor:"pointer",border:"2px solid #f0f0f0"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div><div style={{fontWeight:900,fontSize:15,color:"#222"}}>🎯 Shot Tracker</div><div style={{fontSize:11,color:"#aaa",fontWeight:700}}>Session {sessions.length} · Tap to open →</div></div>
+          <div style={{textAlign:"right"}}><div style={{fontSize:28,fontWeight:900,color:cur.shots.length===0?"#ddd":cp>=50?"#6BCB77":"#FF6B6B",lineHeight:1}}>{cur.shots.length===0?"—":`${cp}%`}</div><div style={{fontSize:10,color:"#aaa",fontWeight:700}}>TODAY FG%</div></div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{flex:1,height:7,borderRadius:4,background:"#f0f0f0"}}><div style={{height:"100%",borderRadius:4,width:`${cp}%`,background:"linear-gradient(90deg,#6BCB77,#4D96FF)"}}/></div>
+          <span style={{fontSize:11,fontWeight:800,color:"#6BCB77"}}>{cm}✅</span>
+          <span style={{fontSize:11,fontWeight:800,color:"#FF6B6B"}}>{cur.shots.length-cm}❌</span>
+        </div>
+        {at.total>0&&<div style={{marginTop:6,fontSize:10,color:"#ccc",fontWeight:700}}>All-time: {getFGPct(at.makes,at.total)}% · {at.total} shots · {sessions.length} sessions</div>}
+      </div>
+      {sessions.some(s=>s.shots.length>0)&&(
+        <div style={{background:"#fff",borderRadius:18,padding:"11px 14px",marginBottom:14,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
+          <div style={{fontSize:10,fontWeight:800,color:"#aaa",letterSpacing:1,marginBottom:7}}>📈 FG% TREND</div>
+          <div style={{display:"flex",alignItems:"flex-end",gap:5,height:40}}>
+            {sessions.map((s,i)=>{const sm=s.shots.filter(x=>x.result==="make").length;const sp=getFGPct(sm,s.shots.length);return(<div key={s.id} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}><div style={{fontSize:8,fontWeight:800,color:s.shots.length?(sp>=50?"#6BCB77":"#FF6B6B"):"#eee"}}>{s.shots.length?`${sp}%`:""}</div><div style={{width:"100%",borderRadius:"3px 3px 0 0",background:s.shots.length?(sp>=50?"#6BCB77":"#FF6B6B"):"#f0f0f0",height:s.shots.length?`${Math.max(4,sp*0.3)}px`:4}}/><div style={{fontSize:8,color:"#ddd"}}>S{i+1}</div></div>);})}
+          </div>
+        </div>
+      )}
+      <div style={{fontSize:11,fontWeight:800,color:"#aaa",letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>Drill Progress</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+        {[1,2,3,4].map(w=>{const p=wp(w);const c=COLORS[w-1];return(
+          <button key={w} onClick={()=>{setSw(w);setDv("calendar");setTab("drills");}} style={{borderRadius:16,border:`3px solid ${p>0?c:"#e8e8e8"}`,background:p===100?c:"#fff",padding:"10px 4px",cursor:"pointer"}}>
+            <div style={{fontSize:14,fontWeight:900,color:p===100?"#fff":"#333"}}>W{w}</div>
+            <div style={{fontSize:10,fontWeight:700,color:p===100?"rgba(255,255,255,0.9)":"#bbb",marginTop:1}}>{p}%</div>
+            <div style={{marginTop:3,height:4,borderRadius:2,background:p===100?"rgba(255,255,255,0.35)":"#f0f0f0"}}><div style={{height:"100%",borderRadius:2,width:`${p}%`,background:p===100?"#fff":c}}/></div>
+          </button>
+        );})}
+      </div>
+    </div>
+  )}
+
+  {tab==="drills"&&(
+    <div>
+      <div style={{padding:"14px 16px 0"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:7}}>
+          {[1,2,3,4].map(w=>{const p=wp(w);const c=COLORS[w-1];const a=sw===w;return(
+            <button key={w} onClick={()=>{setSw(w);setSd(null);setDv("calendar");}} style={{borderRadius:14,border:`3px solid ${a?c:"#e8e8e8"}`,background:a?c:"#fff",padding:"8px 4px",cursor:"pointer",boxShadow:a?`0 4px 14px ${c}55`:"none"}}>
+              <div style={{fontSize:13,fontWeight:900,color:a?"#fff":"#333"}}>W{w}</div>
+              <div style={{fontSize:10,fontWeight:700,color:a?"rgba(255,255,255,0.85)":"#bbb",marginTop:1}}>{p}%</div>
+              <div style={{marginTop:3,height:4,borderRadius:2,background:a?"rgba(255,255,255,0.35)":"#f0f0f0"}}><div style={{height:"100%",borderRadius:2,width:`${p}%`,background:a?"#fff":c}}/></div>
+            </button>
+          );})}
+        </div>
+        <div style={{marginTop:6,textAlign:"center",fontSize:12,fontWeight:800,color:"#777"}}>{WEEK_LABELS[sw-1]}</div>
+      </div>
+      {dv==="calendar"&&(
+        <div style={{padding:"12px 16px 0"}}>
+          <div style={{fontSize:11,fontWeight:800,color:"#aaa",marginBottom:8,letterSpacing:1,textTransform:"uppercase"}}>Pick a Practice Day</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:9}}>
+            {[0,1,2,3].map(i=>{const p=dp(sw,i+1);const c=COLORS[i+1];return(
+              <button key={i} onClick={()=>{setSd(i+1);setDv("drills");}} style={{borderRadius:17,border:`3px solid ${p===100?c:"#e8e8e8"}`,background:p===100?`${c}22`:"#fff",padding:"13px 5px",cursor:"pointer",textAlign:"center"}}>
+                <div style={{fontSize:19}}>{p===100?"⭐":"🏀"}</div>
+                <div style={{fontWeight:900,fontSize:13,color:"#333",marginTop:3}}>Day {i+1}</div>
+                <div style={{fontSize:10,color:"#aaa",fontWeight:700}}>{DAY_NAMES[i]}</div>
+                <div style={{marginTop:6,height:5,borderRadius:3,background:"#f0f0f0"}}><div style={{height:"100%",borderRadius:3,width:`${p}%`,background:c}}/></div>
+                <div style={{fontSize:10,fontWeight:800,color:p===100?c:"#ddd",marginTop:2}}>{p}%</div>
+              </button>
+            );})}
+          </div>
+          <div style={{marginTop:13,background:"#fff",borderRadius:17,padding:"13px 15px",boxShadow:"0 2px 9px rgba(0,0,0,0.05)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+              <span style={{fontWeight:800,fontSize:13}}>Week {sw} Progress</span>
+              <span style={{fontWeight:900,fontSize:16,color:COLORS[sw-1]}}>{wp(sw)}%</span>
+            </div>
+            <div style={{height:8,borderRadius:4,background:"#f0f0f0"}}><div style={{height:"100%",borderRadius:4,width:`${wp(sw)}%`,background:`linear-gradient(90deg,${COLORS[sw-1]},${COLORS[sw]||"#FF9A3C"})`}}/></div>
+          </div>
+        </div>
+      )}
+      {dv==="drills"&&sd&&(
+        <div style={{padding:"12px 16px 0"}}>
+          <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:11}}>
+            <button onClick={()=>setDv("calendar")} style={{background:"#fff",border:"2px solid #eee",borderRadius:11,padding:"5px 11px",cursor:"pointer",fontWeight:800,fontSize:12,color:"#666"}}>← Back</button>
+            <div><div style={{fontWeight:900,fontSize:14,color:"#333"}}>Day {sd} Drills</div><div style={{fontSize:10,color:"#aaa",fontWeight:700}}>Week {sw} · {drills.length} drills</div></div>
+            <div style={{marginLeft:"auto",fontWeight:900,fontSize:19,color:COLORS[sd]}}>{dp(sw,sd)}%</div>
+          </div>
+          <div style={{height:6,borderRadius:3,background:"#f0f0f0",marginBottom:11}}><div style={{height:"100%",borderRadius:3,width:`${dp(sw,sd)}%`,background:"linear-gradient(90deg,#FF6B6B,#FFD93D)"}}/></div>
+          {drills.map((drill,i)=>(<DrillCard key={drill.id} drill={drill} done={!!done[`${sw}-${sd}-${drill.id}`]} reps={reps[`${sw}-${sd}-${drill.id}`]} onToggle={()=>tog(sw,sd,drill.id)} onRepsChange={v=>lr(sw,sd,drill.id,v)} color={COLORS[i%COLORS.length]}/>))}
+          {dp(sw,sd)===100&&(<div style={{textAlign:"center",padding:"17px",background:"linear-gradient(135deg,#6BCB77,#4D96FF)",borderRadius:21,color:"#fff",fontWeight:900,fontSize:16,marginBottom:12}}>⭐ DAY COMPLETE! ⭐<br/><span style={{fontSize:11,fontWeight:700,opacity:0.9}}>You crushed it today! 🏀🔥</span></div>)}
+        </div>
+      )}
+    </div>
+  )}
+
+  {tab==="shots"&&<ShotTracker sessions={sessions} onNew={newSession} onAdd={addShot} onRemove={remShot} onClear={clrSession}/>}
+
+  <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#fff",borderTop:"2px solid #f0f0f0",display:"flex",boxShadow:"0 -4px 16px rgba(0,0,0,0.08)",zIndex:100}}>
+    {[{id:"home",emoji:"🏠",label:"Home"},{id:"drills",emoji:"🏀",label:"Drills"},{id:"shots",emoji:"🎯",label:"Shots"}].map(n=>(
+      <button key={n.id} onClick={()=>setTab(n.id)} style={{flex:1,padding:"9px 0 11px",border:"none",background:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+        <span style={{fontSize:21}}>{n.emoji}</span>
+        <span style={{fontSize:9,fontWeight:800,color:tab===n.id?"#FF6B6B":"#bbb",letterSpacing:0.5}}>{n.label.toUpperCase()}</span>
+        {tab===n.id&&<div style={{width:18,height:3,borderRadius:2,background:"#FF6B6B"}}/>}
+      </button>
+    ))}
+  </div>
+</div>
+```
+
+);
+}
+
+ReactDOM.createRoot(document.getElementById(‘root’)).render(<App/>);
+</script>
+
+</body>
+</html>
